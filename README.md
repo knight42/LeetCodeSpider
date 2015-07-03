@@ -33,13 +33,13 @@ Example:
 ```
     $ grasp.py -c shell
 ```
-* save the problems whose numbers in {1,2,3,4,5,12,16} in `algorithms` category:
+* save the problems whose numbers are in {1,2,3,4,5,12,16} in `algorithms` category:
 ```
     $ grasp.py -c algorithms -n 1-5,12,16
 ```
 * save the easy and hard problems in `database` category:
 ```
-    $ grasp.py -c algorithms -d easy,hard
+    $ grasp.py -c database -d easy,hard
 ```
 * save the hard problems with tag `dynamic-programming`:
 ```
@@ -57,5 +57,4 @@ Example:
 * show problems with specified tags:
 ```
     $ grasp.py --show_tags -t trie,math
-    $ grasp.py --show_tags
 ```
