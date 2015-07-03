@@ -1,11 +1,19 @@
 README
 ======
 
+Description:
+------------
+Save filtered problems on leetcode.com
+
+Note: saved problems will be ignored
+
+PS: At present, the script can only save the *description* of problems.  Although I want to save the code with specified language at the same time, I don't know how to get it since the code seems to be generated dynamically. If you know, please tell me! Any help would be appreciated.
+
 Dependecies:
 ------------
-* python3
-* python3-beautifulsoup4
-* python3-requests
+* python >= 3.2
+* python3-beautifulsoup4 4.3.2
+* python3-requests 2.7.0
 
 Options:
 ------
