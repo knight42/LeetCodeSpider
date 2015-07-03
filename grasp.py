@@ -19,14 +19,13 @@ def get_filtered_problems(plist, flist):
     return list(plist)
 
 if __name__ == '__main__':
-    BASEDIR = os.path.dirname(__file__)
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--number', 
-                        help="Specify the question No.")
+                        help="Specify the question number")
     parser.add_argument('-c', '--category', 
-                        help="Specify the category: algorithms, database, shell")
+                        help="Specify the category: algorithms, database, shell, all")
     parser.add_argument('-d', '--difficulty',
-                        help="Specify the difficulty: easy, medium, hard.\t"
+                        help="Specify the difficulty: easy, medium, hard.\n"
                         "If not specified, all problems will be grasped")
     parser.add_argument('-t', '--tag',
                         help="Specify the tag")
