@@ -3,11 +3,13 @@ README
 
 Description:
 ------------
-Save filtered problems on leetcode.com
+Save filtered problems on leetcode.com in current dir.
 
-Note: saved problems will be ignored
+Note:
+1. saved problems will be ignored
+2. cannot specify category and tag at the same time
 
-PS: At present, the script can only save the *description* of problems.  Although I want to save the code with specified language at the same time, I don't know how to get it since the code seems to be generated dynamically. If you know, please tell me! Any help would be appreciated.
+PS: At present, the script can only save the *description* of problems.  Although I want to save the code with specified language at the same time, I don't know how to get it since the code seems to be generated dynamically. If you know, please tell me! Any help and advice would be appreciated :)
 
 Dependecies:
 ------------
@@ -19,19 +21,20 @@ Options:
 ------
 ```
 usage: grasp.py [-h] [-n NUMBER] [-c CATEGORY] [-d DIFFICULTY] [-t TAG]
-                [--show_tags] [-v]
+                [--show_tags] [--show_categories] [-v]
 
 optional arguments:
-  -h, --help            Show this help message and exit
+  -h, --help            show this help message and exit
   -n NUMBER, --number NUMBER
                         Specify the question number
   -c CATEGORY, --category CATEGORY
                         Specify the category: algorithms, database, shell, all
   -d DIFFICULTY, --difficulty DIFFICULTY
-                        Specify the difficulty: easy, medium, hard
-                        If not specified, all problems will be grasped
+                        Specify the difficulty: easy, medium, hard. If not
+                        specified, all problems will be grasped
   -t TAG, --tag TAG     Specify the tag
-  --show_tags           Display problems with specified tags
+  --show_tags           Display all the tags
+  --show_categories     Display all the categories
   -v, --verbose         verbose output
 ```
 
@@ -62,7 +65,15 @@ Example:
 ```
     $ grasp.py --show_tags
 ```
+* display available categories:
+```
+    $ grasp.py --show_categories
+```
 * show problems with specified tags:
 ```
     $ grasp.py --show_tags -t trie,math
+```
+* show easy problems in `algorithm` category:
+```
+    $ grasp.py --show_categories -c algorithms -d easy
 ```

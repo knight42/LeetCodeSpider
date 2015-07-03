@@ -18,6 +18,19 @@ def get_filtered_problems(plist, flist):
         plist = filter(f, plist)
     return list(plist)
 
+def print_problems(items, urllist):
+    # Note:
+    # $c(crawler instance) and $filter_list are global
+
+    for t, u in zip(items, urllist):
+        print('The problems under <{}> are:'.format(t))
+        plist = get_filtered_problems(c.get_problems_list(u), filter_list)
+        for p in plist:
+            print('\t'.join((p['number'], p['title'],
+                            p['acceptance'], p['difficulty'])))
+        print()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--number', 
@@ -32,6 +45,9 @@ if __name__ == '__main__':
     parser.add_argument('--show_tags',
                         action="store_true",
                         help="Display all the tags")
+    parser.add_argument('--show_categories',
+                        action="store_true",
+                        help="Display all the categories")
     parser.add_argument('-v', '--verbose',
                         action="store_true",
                         help="verbose output")
@@ -67,10 +83,11 @@ if __name__ == '__main__':
             print('Specified difficulty is: {}'.format(specified_difficulty))
 
     specified_categories, specified_tags = None, None
-
+    
+    ALL_CATEGORIES = ['algorithms', 'database', 'shell']
     if args.category:
         if args.category == 'all': 
-            specified_categories = ['algorithms', 'database', 'shell']
+            specified_categories = ALL_CATEGORIES
         else:
             specified_categories = args.category.split(',')
         if args.verbose:
@@ -82,7 +99,7 @@ if __name__ == '__main__':
         c=crawler.Crawler()
         c.BASEDIR = os.path.join(c.BASEDIR, 'Tag')
         if not specified_tags:
-            specified_tags = [ i for i in c.TAGS.keys() ]
+            specified_tags = list(c.TAGS.keys())
         if args.verbose:
             print('Specified tags are: {}'.format(specified_tags))
 
@@ -98,16 +115,16 @@ if __name__ == '__main__':
         if not specified_tags:
             c=crawler.Crawler()
             print('Available tags are:')
-            for t in c.TAGS.keys():
-                print(t)
+            print('\n'.join(c.TAGS.keys()))
         else:
-            for t, u in zip(specified_tags, urllist):
-                print('The problems under <{}> are:'.format(t))
-                plist = get_filtered_problems(c.get_problems_list(u), filter_list)
-                for p in plist:
-                    print('\t'.join((p['number'], p['title'],
-                                    p['acceptance'], p['difficulty'])))
-                print()
+            print_problems(specified_tags, urllist)
+        sys.exit(0)
+    elif args.show_categories:
+        if not specified_categories:
+            print('Available categories are:')
+            print('\n'.join(ALL_CATEGORIES))
+        else:
+            print_problems(specified_categories, urllist)
         sys.exit(0)
 
     if not specified_tags and not specified_categories:
