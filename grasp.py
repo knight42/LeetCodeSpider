@@ -1,91 +1,22 @@
 #!/usr/bin/python3 -O
 # -*- coding: utf-8 -*-
 import os
-import re
 import sys
 import argparse
-import requests
+import crawler
 from urllib.parse import urljoin
-from bs4 import BeautifulSoup as bs
-import concurrent.futures as cf
 
-class PageError(Exception):
-    def __init__(self, text, url):
-        self.msg = text
-        self.url = url
-    def __str__(self):
-        return '{}: {}'.format(self.msg, self.url)
+def get_saved_problems(path):
+    try:
+        saved = [ i.split('-')[0] for i in os.listdir(path) ]
+    except:
+        saved = []
+    return saved
 
-class Crawler:
-    def __init__(self):
-        self.BASEURL = 'https://leetcode.com/problemset/'
-        self.TABLE = dict()
-        self.TAGS, self.TOP10 = [], []
-        html = requests.get(self.BASEURL)
-        soup = bs(html.content)
-        content = soup.select('a[class=list-group-item]')
-        for item in content[:10]:
-            self.TOP10.append((''.join(item.stripped_strings),
-                                urljoin(self.BASEURL, item['href'])))
-        for item in content[10:]:
-            # data: count tag url
-            data = list(item.stripped_strings)
-            data[1] = data[1].replace(' ','-')
-            data[1] = data[1].lower()
-            data.append(urljoin(self.BASEURL, item['href']))
-            self.TAGS.append(tuple(data))
-
-    def get_table(self, url, tableid):
-        pat = re.compile('/(\w+)/?')
-        key = pat.findall(url)[0]
-        if key in self.TABLE.keys():
-            return self.TABLE[key]
-        html = requests.get(url)
-        soup = bs(html.content)
-        if soup.find(text=re.compile('available')):
-            raise PageError('No Such Page', url) 
-        table = soup.find(id=tableid).find_all('tr')[1:]
-        return self.TABLE.setdefault(key, table)
-
-    def get_problems_num(self, url, tableid='problemList'):
-        try:
-            content = self.get_table(url, tableid)
-        except:
-            raise
-
-        return len(content)
-
-    def get_problems_list(self, url, tableid='problemList'):
-        try:
-            content = self.get_table(url, tableid)
-        except:
-            raise
-
-        for p in content:
-            info = tuple(p.stripped_strings)
-            d = {
-                'number':info[0],
-                'title':info[1].replace(' ','_'),
-                'acceptance':info[2],
-                'difficulty':info[3],
-                'url':urljoin(self.BASEURL, p.find('a')['href'])
-            }
-            yield d
-
-    def _write_file(self, info, pdir):
-        html = requests.get(info['url'])
-        soup = bs(html.content)
-        content = soup.find(class_='question-content')
-        pdir = os.path.join(pdir, '-'.join((info['number'], info['title'])))
-        os.makedirs(pdir)
-        with open(os.path.join(pdir, 'problem.txt'), 'w') as f:
-            print(content.text, file=f)
-
-    def save_problems(self, problemslist, problemsdir):
-        with cf.ThreadPoolExecutor(max_workers=10) as e:
-            e.map(lambda x: self._write_file(x, problemsdir), problemslist)
-            e.shutdown(wait=True)
-
+def get_filtered_problems(plist, flist):
+    for f in flist:
+        plist = filter(f, plist)
+    return list(plist)
 
 if __name__ == '__main__':
     BASEDIR = os.path.dirname(__file__)
@@ -93,24 +24,111 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--number', 
                         help="Specify the question No.")
     parser.add_argument('-c', '--category', 
-                        help="Specify the category")
+                        help="Specify the category: algorithms, database, shell")
     parser.add_argument('-d', '--difficulty',
-                        help="Specify the difficulty. If not specified, all problems will be grasped")
+                        help="Specify the difficulty: easy, medium, hard.\t"
+                        "If not specified, all problems will be grasped")
     parser.add_argument('-t', '--tag',
                         help="Specify the tag")
     parser.add_argument('--show_tags',
                         action="store_true",
                         help="Display all the tags")
+    parser.add_argument('-v', '--verbose',
+                        action="store_true",
+                        help="verbose output")
     args = parser.parse_args()
-    #if args.category is None:
-    #    print('Please specify the category of problems')
-    #    sys.exit(1)
+
+    filter_list = []
+
+    if args.category and args.tag:
+        print('You cannot specify <category> and <tag> at the same time.')
+        sys.exit(1)
+
+    if args.number:
+        nlist = args.number.split(',')
+        specified_numbers = set()
+        for n in nlist:
+            if n.isdigit():
+                specified_numbers.add(n)
+            elif '-' in n:
+                b, e = n.split('-')
+                specified_numbers.update({ str(i) for i in range(int(b), int(e)+1) })
+
+        filter_list.append(lambda x: x['number'] in specified_numbers)
+
+        if args.verbose:
+            print('Specified numbers are: {}'.format(specified_numbers))
+
+    if args.difficulty:
+        specified_difficulty = args.difficulty.split(',')
+
+        filter_list.append(lambda x: x['difficulty'] in specified_difficulty)
+
+        if args.verbose:
+            print('Specified difficulty is: {}'.format(specified_difficulty))
+
+    specified_categories, specified_tags = None, None
+
+    if args.category:
+        if args.category == 'all': 
+            specified_categories = ['algorithms', 'database', 'shell']
+        else:
+            specified_categories = args.category.split(',')
+        if args.verbose:
+            print('Specified categories are: {}'.format(specified_categories))
+
+    if args.tag:
+        if args.tag != 'all': 
+            specified_tags = args.tag.split(',')
+        c=crawler.Crawler()
+        c.BASEDIR = os.path.join(c.BASEDIR, 'Tag')
+        if not specified_tags:
+            specified_tags = [ i for i in c.TAGS.keys() ]
+        if args.verbose:
+            print('Specified tags are: {}'.format(specified_tags))
+
+    if specified_tags:
+        L = specified_tags
+        urllist = [ c.TAGS[i][1] for i in L ]
+    elif specified_categories:
+        L = specified_categories
+        c=crawler.Crawler()
+        urllist = [ urljoin(c.BASEURL, i) for i in L ]
+
     if args.show_tags:
-        c=Crawler()
-        print(c.TAGS)
+        if not specified_tags:
+            c=crawler.Crawler()
+            print('Available tags are:')
+            for t in c.TAGS.keys():
+                print(t)
+        else:
+            for t, u in zip(specified_tags, urllist):
+                print('The problems under <{}> are:'.format(t))
+                plist = get_filtered_problems(c.get_problems_list(u), filter_list)
+                for p in plist:
+                    print('\t'.join((p['number'], p['title'],
+                                    p['acceptance'], p['difficulty'])))
+                print()
         sys.exit(0)
-    if not args.category and not args.tag:
+
+    if not specified_tags and not specified_categories:
         print('Please at least specify the category or tag.')
         sys.exit(1)
-    #print(c.TOP10)
-    #print(c.TAGS)
+
+    for i, u in zip(L, urllist):
+        filter_list.append(lambda x: x['number'] not in get_saved_problems(os.path.join(c.BASEDIR, i)))
+
+        try:
+            plist = get_filtered_problems(c.get_problems_list(u), filter_list)
+        except Exception as e:
+            print(e)
+            continue
+
+        if args.verbose:
+            print('-----------8<---Problems List Begin---8<------------')
+            print(plist)
+            print('-----------8<---Problems List End---8<------------')
+
+        c.save_problems(plist, i)
+
+        filter_list.pop()
