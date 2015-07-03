@@ -3,7 +3,7 @@ README
 
 Description:
 ------------
-Save filtered problems on leetcode.com
+Save filtered problems on leetcode.com in current dir.
 
 Note: saved problems will be ignored
 
