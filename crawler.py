@@ -3,10 +3,10 @@
 
 import os
 import re
-import json
 import requests
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup as bs
+from bs4 import SoupStrainer
 import concurrent.futures as cf
 
 class PageError(Exception):
@@ -17,19 +17,28 @@ class PageError(Exception):
         return '{}: {}'.format(self.msg, self.url)
 
 class Crawler:
-    def __init__(self):
+    def __init__(self, debug=False):
+        self.DEBUG = debug
         self.BASEURL = 'https://leetcode.com/problemset/'
         self.BASEDIR = os.path.dirname(__file__)
-        self.TABLE = dict()
+        self.SAVENAME = {'c':'problem.c',
+                         'cpp':'problem.cpp',
+                         'ruby':'problem.rb',
+                         'javascript':'problem.js',
+                         'csharp':'problem.cs',
+                         'python':'problem.py',
+                         'java':'problem.java'}
         self.TAGS = dict()
+
+        onlytags = SoupStrainer(class_='list-group-item')
         html = requests.get(self.BASEURL, timeout=10)
-        soup = bs(html.content)
-        content = soup.select('a[class=list-group-item]')
+        soup = bs(html.content, parse_only=onlytags)
+        content = soup.find_all('a', onclick=None)
         #self.TOP10 = []
         #for item in content[:10]:
         #    self.TOP10.append((''.join(item.stripped_strings),
         #                        urljoin(self.BASEURL, item['href'])))
-        for item in content[10:]:
+        for item in content:
             # data: count title url
             data = list(item.stripped_strings)
             data[1] = data[1].replace(' ','-')
@@ -38,15 +47,10 @@ class Crawler:
             self.TAGS[data[1]] = (data[0], data[2])
 
     def get_table(self, url):
-        pat = re.compile('/([\w-]+)/?$')
-        key = pat.findall(url)[0]
-        if key in self.TABLE.keys():
-            return self.TABLE[key]
-
         html = requests.get(url, timeout=10)
         soup = bs(html.content)
         if soup.find(text=re.compile('available')):
-            raise PageError('No Such Page', url) 
+            raise PageError('No Such Page', url)
 
         if '/tag/' in url:
             pat = re.compile('"id".+?"(\d+)".+?"title".+?"(.+?)".+?"ac_rate".+?"(.+?)".+?"difficulty".+?"(.+?)"',
@@ -61,7 +65,7 @@ class Crawler:
             t = soup.find(id='problemList').find_all('tr')[1:]
             table = [ tuple(i.stripped_strings) + (i.a['href'],) for i in t ]
 
-        return self.TABLE.setdefault(key, table)
+        return table
 
     def get_problems_list(self, url):
         try:
@@ -69,17 +73,20 @@ class Crawler:
         except:
             raise
 
-        for info in content:
-            d = {
-                'number':info[0],
-                'title':info[1].replace(' ','_'),
-                'acceptance':info[2],
-                'difficulty':info[3].lower(),
-                'url':urljoin(self.BASEURL, info[4])
-            }
-            yield d
+        if self.DEBUG:
+            print("Grasped content:")
+            print(content)
 
-    def _write_file(self, info, pdir, lang='c'):
+        for info in content:
+            yield {
+                    'number':info[0],
+                    'title':info[1].replace(' ','_'),
+                    'acceptance':info[2],
+                    'difficulty':info[3].lower(),
+                    'url':urljoin(self.BASEURL, info[4])
+                  }
+
+    def _write_file(self, info, pdir, langlist):
         html = requests.get(info['url'])
         soup = bs(html.content)
         desc = soup.find(class_='question-content')
@@ -90,27 +97,23 @@ class Crawler:
         raw = raw.replace("'", '"') # ' -> "
         raw = ''.join(raw.rsplit(',', 1)) # remove the last ',' in json list
         codelist = json.loads(raw)
+        codelist = filter(lambda x: x['value'] in langlist, codelist)
 
-        if lang == 'c':
-            f = lambda x: x['value'] == 'c'
-        elif lang == 'cpp':
-            f = lambda x: x['value'] == 'cpp'
-        elif lang == 'c#':
-            f = lambda x: x['value'] == 'csharp'
-        elif lang == 'java':
-            f = lambda x: x['value'] == 'java'
-        elif lang == 'python':
-            f = lambda x: x['value'] == 'python'
-        elif lang == 'js':
-            f = lambda x: x['value'] == 'javascript'
-        elif lang == 'ruby':
-            f = lambda x: x['value'] == 'ruby'
-        code = list(filter(f, codelist))[0]['defaultCode']
+        d = {}
+        for item in codelist:
+            d[item['value']] = item['defaultCode']
 
-        pdir = os.path.join(pdir, '-'.join([info['number'], info['title']]))
-        os.makedirs(pdir)
-        with open(os.path.join(pdir, 'description.txt'), 'w') as f:
-            print(desc.text, file=f)
+        for lang in langlist:
+            pdir = os.path.join(pdir, '-'.join([info['number'], info['title']]))
+            os.makedirs(pdir, exist_ok=True)
+            filepath = os.path.join(pdir, self.SAVENAME[lang])
+            if os.path.isfile(filepath):
+                print('{} already exists!'.format(filepath))
+                continue
+            with open(filepath, 'w') as f:
+                print(desc.text, file=f)
+                print(d[lang], file=f)
+                print('{} saved.'.format(filepath))
 
     def save_problems(self, plist, pdir, workers=10):
         if len(plist) == 0: return
