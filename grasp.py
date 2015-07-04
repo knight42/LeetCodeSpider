@@ -2,9 +2,30 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import json
 import argparse
 import crawler
 from urllib.parse import urljoin
+
+# This piece of code mainly comes from @vamin in StackOverFlow
+# See http://stackoverflow.com/a/25334100/4725840
+class CustomFormatter(argparse.HelpFormatter):
+    def _format_action_invocation(self, action):
+        if not action.option_strings:
+            metavar, = self._metavar_formatter(action, action.dest)(1)
+            return metavar
+        else:
+            # if the Optional doesn't take a value, format is:
+            #    -s, --long
+            if action.nargs == 0:
+                return ', '.join(action.option_strings)
+            # if the Optional takes a value, format is:
+            #    -s, --long ARGS
+            else:
+                default = action.dest.upper()
+                args_string = self._format_args(action, default)
+                option_string = ', '.join(action.option_strings)
+            return '{} {}'.format(option_string, args_string)
 
 def get_saved_problems(path):
     try:
@@ -19,7 +40,7 @@ def get_filtered_problems(plist, flist):
     return list(plist)
 
 def print_problems(items, urllist):
-    # Note:
+    # memo:
     # $c(crawler instance) and $filter_list are global
 
     for t, u in zip(items, urllist):
@@ -33,31 +54,64 @@ def print_problems(items, urllist):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-n', '--number', 
-                        help="Specify the question number")
-    parser.add_argument('-c', '--category', 
-                        help="Specify the category: algorithms, database, shell, all")
-    parser.add_argument('-d', '--difficulty',
-                        help="Specify the difficulty: easy, medium, hard.\n"
-                        "If not specified, all problems will be grasped")
-    parser.add_argument('-t', '--tag',
-                        help="Specify the tag")
-    parser.add_argument('--show_tags',
-                        action="store_true",
-                        help="Display all the tags")
-    parser.add_argument('--show_categories',
-                        action="store_true",
-                        help="Display all the categories")
-    parser.add_argument('-v', '--verbose',
-                        action="store_true",
-                        help="verbose output")
-    args = parser.parse_args()
 
-    filter_list = []
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser.add_argument('-n', '--number', 
+                        nargs='*',
+                        help="Specify the question number")
+    parent_parser.add_argument('-d', '--difficulty',
+                        nargs='*',
+                        choices=['easy', 'medium', 'hard'],
+                        help="Specify the difficulty.")
+    parent_parser.add_argument('-v', '--verbose',
+                        action="store_true",
+                        help="Verbose output"
+                        "If not specified, all problems will be grasped")
+
+    subparsers = parser.add_subparsers(help='commands')
+
+    sav_parser = subparsers.add_parser('save',
+                            parents=[parent_parser],
+                            formatter_class=CustomFormatter,
+                            help='Save filtered problems in cur dir.')
+    tag_parser = subparsers.add_parser('show_tags', 
+                            parents=[parent_parser],
+                            formatter_class=CustomFormatter,
+                            help='Display available tags or problems with specified tags')
+    cat_parser = subparsers.add_parser('show_categories',
+                            parents=[parent_parser],
+                            formatter_class=CustomFormatter,
+                            help='Display available categories or problems in specified categories')
+
+    cat_parser.add_argument('-c', '--category', 
+                        nargs='*',
+                        choices=['algorithms', 'database', 'shell', 'all'],
+                        help="Specify the category")
+    tag_parser.add_argument('-t', '--tag',
+                        nargs='*',
+                        help="Specify the tag")
+    sav_parser.add_argument('-l','--language',
+                        nargs='+',
+                        required=True,
+                        choices=['all','cpp','java','python','c','c#','js','ruby'],
+                        help="Specify the language")
+
+    sav_group = sav_parser.add_mutually_exclusive_group(required=True)
+    sav_group.add_argument('-c', '--category', 
+                        nargs='*',
+                        choices=['algorithms', 'database', 'shell', 'all'],
+                        help="Specify the category")
+    sav_group.add_argument('-t', '--tag',
+                        nargs='*',
+                        help="Specify the tag")
+
+    args = parser.parse_args()
 
     if args.category and args.tag:
         print('You cannot specify <category> and <tag> at the same time.')
         sys.exit(1)
+
+    filter_list = []
 
     if args.number:
         nlist = args.number.split(',')
@@ -85,6 +139,7 @@ if __name__ == '__main__':
     specified_categories, specified_tags = None, None
     
     ALL_CATEGORIES = ['algorithms', 'database', 'shell']
+
     if args.category:
         if args.category == 'all': 
             specified_categories = ALL_CATEGORIES
@@ -128,7 +183,7 @@ if __name__ == '__main__':
         sys.exit(0)
 
     if not specified_tags and not specified_categories:
-        print('Please at least specify the category or tag.')
+        print('Please at least specify a category or tag.')
         sys.exit(1)
 
     for i, u in zip(L, urllist):

@@ -3,6 +3,7 @@
 
 import os
 import re
+import json
 import requests
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup as bs
@@ -78,14 +79,38 @@ class Crawler:
             }
             yield d
 
-    def _write_file(self, info, pdir):
+    def _write_file(self, info, pdir, lang='c'):
         html = requests.get(info['url'])
         soup = bs(html.content)
-        content = soup.find(class_='question-content')
+        desc = soup.find(class_='question-content')
+        tag = soup.find(lambda x: x.has_attr('ng-init'))
+        rawjson = tag['ng-init']
+        pat = re.compile('(\[.+\])')
+        raw = pat.search(rawjson).group()
+        raw = raw.replace("'", '"') # ' -> "
+        raw = ''.join(raw.rsplit(',', 1)) # remove the last ',' in json list
+        codelist = json.loads(raw)
+
+        if lang == 'c':
+            f = lambda x: x['value'] == 'c'
+        elif lang == 'cpp':
+            f = lambda x: x['value'] == 'cpp'
+        elif lang == 'c#':
+            f = lambda x: x['value'] == 'csharp'
+        elif lang == 'java':
+            f = lambda x: x['value'] == 'java'
+        elif lang == 'python':
+            f = lambda x: x['value'] == 'python'
+        elif lang == 'js':
+            f = lambda x: x['value'] == 'javascript'
+        elif lang == 'ruby':
+            f = lambda x: x['value'] == 'ruby'
+        code = list(filter(f, codelist))[0]['defaultCode']
+
         pdir = os.path.join(pdir, '-'.join([info['number'], info['title']]))
         os.makedirs(pdir)
         with open(os.path.join(pdir, 'description.txt'), 'w') as f:
-            print(content.text, file=f)
+            print(desc.text, file=f)
 
     def save_problems(self, plist, pdir, workers=10):
         if len(plist) == 0: return
