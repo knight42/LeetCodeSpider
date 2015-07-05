@@ -119,15 +119,18 @@ class Crawler:
         for lang in d.keys():
             codepath = os.path.join(pdir, self.SAVENAME[lang])
             if os.path.isfile(codepath):
-                print('{} already exists!'.format(codepath))
+                if self.DEBUG:
+                    print('{} already exists!'.format(codepath))
                 continue
             with open(codepath, 'w') as f:
                 print(d[lang].replace('\r\n', os.linesep), file=f)
-                print('{} saved.'.format(codepath))
+                if self.DEBUG:
+                    print('{} saved.'.format(codepath))
 
     def save_problems(self, plist, pdir, langlist, workers=15):
         if len(plist) == 0: return
         with cf.ThreadPoolExecutor(max_workers=workers) as e:
             e.map(lambda x: self._write_file(x, os.path.join(self.BASEDIR, pdir), langlist), plist)
             e.shutdown(wait=True)
+        print('All done!')
 
