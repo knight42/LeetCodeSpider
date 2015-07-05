@@ -56,12 +56,12 @@ if __name__ == '__main__':
     base_parser.add_argument('-d', '--difficulty',
                         nargs='+',
                         choices=['easy', 'medium', 'hard'],
-                        help="Specify the difficulty.")
+                        help="Specify the difficulty.\n"
+                             "If not specified, all problems will be grasped.")
     base_parser.add_argument('-v', '--verbose',
                         action="store_true",
                         default=False,
-                        help="Verbose output"
-                        "If not specified, all problems will be grasped")
+                        help="Verbose output")
 
     subparsers = parser.add_subparsers(help='Available commands', dest='command')
 
@@ -89,7 +89,8 @@ if __name__ == '__main__':
                         nargs='+',
                         default=[],
                         choices=['all','cpp','java','python','c','c#','js','ruby','bash','mysql'],
-                        help="Specify the language")
+                        help="Specify the language.\n"
+                             "If not specified, only the description will be saved.")
 
     sav_group = sav_parser.add_mutually_exclusive_group(required=True)
     sav_group.add_argument('-c', '--category',
