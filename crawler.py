@@ -3,6 +3,7 @@
 
 import os
 import re
+import json
 import requests
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup as bs
@@ -100,7 +101,7 @@ class Crawler:
         if not os.path.isfile(descpath):
             desc = soup.find(class_='question-content')
             with open(descpath, 'w') as f:
-                print(desc.text, file=f)
+                print(desc.text.replace('\r\n', os.linesep), file=f)
 
         tag = soup.find(lambda x: x.has_attr('ng-init'))
         rawjson = tag['ng-init']
@@ -115,16 +116,16 @@ class Crawler:
         for item in codelist:
             d[item['value']] = item['defaultCode']
 
-        for lang in langlist:
+        for lang in d.keys():
             codepath = os.path.join(pdir, self.SAVENAME[lang])
             if os.path.isfile(codepath):
                 print('{} already exists!'.format(codepath))
                 continue
             with open(codepath, 'w') as f:
-                print(d[lang], file=f)
+                print(d[lang].replace('\r\n', os.linesep), file=f)
                 print('{} saved.'.format(codepath))
 
-    def save_problems(self, plist, pdir, langlist, workers=10):
+    def save_problems(self, plist, pdir, langlist, workers=15):
         if len(plist) == 0: return
         with cf.ThreadPoolExecutor(max_workers=workers) as e:
             e.map(lambda x: self._write_file(x, os.path.join(self.BASEDIR, pdir), langlist), plist)

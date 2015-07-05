@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-import json
 import argparse
 import crawler
 from urllib.parse import urljoin
@@ -34,9 +33,6 @@ def get_filtered_problems(plist, flist):
     return list(plist)
 
 def print_problems(crawl, items, urllist, filter_list):
-
-    # memo:
-    # $c(crawler instance) and $filter_list are global
     for t, u in zip(items, urllist):
         print('The problems under <{}> are:'.format(t))
         plist = get_filtered_problems(crawl.get_problems_list(u), filter_list)
@@ -47,6 +43,10 @@ def print_problems(crawl, items, urllist, filter_list):
 
 
 if __name__ == '__main__':
+
+    ALL_CATEGORIES = ['algorithms', 'database', 'shell']
+    ALL_LANGUAGES = ['cpp','java','python','c','csharp','javascript','ruby','bash','mysql']
+    
     parser = argparse.ArgumentParser()
 
     base_parser = argparse.ArgumentParser(add_help=False)
@@ -80,20 +80,21 @@ if __name__ == '__main__':
 
     cat_parser.add_argument('-c', '--category',
                         nargs='+',
-                        choices=['algorithms', 'database', 'shell', 'all'],
+                        choices=ALL_CATEGORIES + ['all'],
                         help="Specify the category")
     tag_parser.add_argument('-t', '--tag',
                         nargs='+',
                         help="Specify the tag")
     sav_parser.add_argument('-l','--language',
                         nargs='+',
+                        default=[],
                         choices=['all','cpp','java','python','c','c#','js','ruby','bash','mysql'],
                         help="Specify the language")
 
     sav_group = sav_parser.add_mutually_exclusive_group(required=True)
     sav_group.add_argument('-c', '--category',
                         nargs='+',
-                        choices=['algorithms', 'database', 'shell', 'all'],
+                        choices=ALL_CATEGORIES + ['all'],
                         help="Specify the category")
     sav_group.add_argument('-t', '--tag',
                         nargs='+',
@@ -127,8 +128,6 @@ if __name__ == '__main__':
         if args.verbose:
             print('Specified difficulty is: {}'.format(args.difficulty))
 
-    ALL_CATEGORIES = ['algorithms', 'database', 'shell']
-    
     argsDict = vars(args)
 
     if argsDict.get('category'):
@@ -169,12 +168,18 @@ if __name__ == '__main__':
     elif args.command == 'save':
         specified_langs = []
         for l in args.language:
-            if l == 'c#':
+            if l == 'all':
+                specified_langs = ALL_LANGUAGES
+                break
+            elif l == 'c#':
                 specified_langs.append('csharp')
             elif l == 'js':
                 specified_langs.append('javascript')
             else:
                 specified_langs.append(l)
+
+        if args.verbose:
+            print('Specified languages are: {}'.format(', '.join(specified_langs)))
 
         for i, u in zip(L, urllist):
             try:
@@ -189,3 +194,4 @@ if __name__ == '__main__':
                 print('-----------8<---Problems List End-----8<------------')
 
             c.save_problems(plist, i, specified_langs)
+
