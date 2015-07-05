@@ -33,13 +33,13 @@ def get_filtered_problems(plist, flist):
         plist = filter(f, plist)
     return list(plist)
 
-def print_problems(items, urllist):
+def print_problems(crawl, items, urllist, filter_list):
 
     # memo:
     # $c(crawler instance) and $filter_list are global
     for t, u in zip(items, urllist):
         print('The problems under <{}> are:'.format(t))
-        plist = get_filtered_problems(c.get_problems_list(u), filter_list)
+        plist = get_filtered_problems(crawl.get_problems_list(u), filter_list)
         for p in plist:
             print('\t'.join((p['number'], p['title'],
                             p['acceptance'], p['difficulty'])))
@@ -86,9 +86,8 @@ if __name__ == '__main__':
                         nargs='+',
                         help="Specify the tag")
     sav_parser.add_argument('-l','--language',
-                        required=True,
                         nargs='+',
-                        choices=['all','cpp','java','python','c','c#','js','ruby'],
+                        choices=['all','cpp','java','python','c','c#','js','ruby','bash','mysql'],
                         help="Specify the language")
 
     sav_group = sav_parser.add_mutually_exclusive_group(required=True)
@@ -129,21 +128,23 @@ if __name__ == '__main__':
             print('Specified difficulty is: {}'.format(args.difficulty))
 
     ALL_CATEGORIES = ['algorithms', 'database', 'shell']
+    
+    argsDict = vars(args)
 
-    try: # category specified
-        if args.category == 'all':
+    if argsDict.get('category'):
+        if 'all' in args.category:
            args.category = ALL_CATEGORIES
-        if args.command == 'save':
-            c = crawler.Crawler(debug=args.verbose)
-            L = args.category
-            urllist = [ urljoin(c.BASEURL, i) for i in L ]
+        c = crawler.Crawler(debug=args.verbose)
+        L = args.category
+        urllist = [ urljoin(c.BASEURL, i) for i in L ]
 
         if args.verbose:
             print('Specified categories are: {}'.format(args.category))
-    except: # tag specified
+
+    elif argsDict.get('tag'):
         c = crawler.Crawler(debug=args.verbose)
         c.BASEDIR = os.path.join(c.BASEDIR, 'Tag')
-        if args.tag == 'all':
+        if 'all' in args.tag:
             args.tag = list(c.TAGS.keys())
         L = args.tag
         urllist = [ c.TAGS[i][1] for i in L ]
@@ -151,7 +152,21 @@ if __name__ == '__main__':
         if args.verbose:
             print('Specified tags are: {}'.format(args.tag))
 
-    if args.command == 'save':
+    if args.command == 'show_tags':
+        if not args.tag:
+            c=crawler.Crawler()
+            print('Available tags are:')
+            print(os.linesep.join(sorted(c.TAGS.keys())))
+        else:
+            print_problems(c, args.tag, urllist, filter_list)
+
+    elif args.command == 'show_categories':
+        if not args.category:
+            print('Available categories are: {}'.format(', '.join(ALL_CATEGORIES)))
+        else:
+            print_problems(c, args.category, urllist, filter_list)
+
+    elif args.command == 'save':
         specified_langs = []
         for l in args.language:
             if l == 'c#':
@@ -173,19 +188,4 @@ if __name__ == '__main__':
                 print(plist)
                 print('-----------8<---Problems List End-----8<------------')
 
-            c.save_problems(plist, i)
-
-    elif args.command == 'show_tags':
-        if not args.tag:
-            c=crawler.Crawler()
-            print('Available tags are:')
-            print(os.linesep.join(sorted(c.TAGS.keys())))
-        else:
-            print_problems(args.tags, urllist)
-
-    elif args.command == 'show_categories':
-        if not args.category:
-            print('Available categories are: {}'.format(', '.join(ALL_CATEGORIES)))
-        else:
-            print_problems(args.category, urllist)
-
+            c.save_problems(plist, i, specified_langs)

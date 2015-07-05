@@ -21,13 +21,15 @@ class Crawler:
         self.DEBUG = debug
         self.BASEURL = 'https://leetcode.com/problemset/'
         self.BASEDIR = os.path.dirname(__file__)
-        self.SAVENAME = {'c':'problem.c',
-                         'cpp':'problem.cpp',
-                         'ruby':'problem.rb',
-                         'javascript':'problem.js',
-                         'csharp':'problem.cs',
-                         'python':'problem.py',
-                         'java':'problem.java'}
+        self.SAVENAME = {'c':'solution.c',
+                         'cpp':'solution.cpp',
+                         'ruby':'solution.rb',
+                         'javascript':'solution.js',
+                         'csharp':'solution.cs',
+                         'python':'solution.py',
+                         'bash':'solution.sh',
+                         'mysql':'solution.sql',
+                         'java':'solution.java'}
         self.TAGS = dict()
 
         onlytags = SoupStrainer(class_='list-group-item')
@@ -87,9 +89,19 @@ class Crawler:
                   }
 
     def _write_file(self, info, pdir, langlist):
+        pdir = os.path.join(pdir, '-'.join([info['number'], info['title']]))
+        os.makedirs(pdir, exist_ok=True)
+
         html = requests.get(info['url'])
-        soup = bs(html.content)
-        desc = soup.find(class_='question-content')
+        strainer = SoupStrainer(class_='col-md-12')
+        soup = bs(html.content, parse_only=strainer)
+
+        descpath = os.path.join(pdir, 'description.txt')
+        if not os.path.isfile(descpath):
+            desc = soup.find(class_='question-content')
+            with open(descpath, 'w') as f:
+                print(desc.text, file=f)
+
         tag = soup.find(lambda x: x.has_attr('ng-init'))
         rawjson = tag['ng-init']
         pat = re.compile('(\[.+\])')
@@ -104,20 +116,17 @@ class Crawler:
             d[item['value']] = item['defaultCode']
 
         for lang in langlist:
-            pdir = os.path.join(pdir, '-'.join([info['number'], info['title']]))
-            os.makedirs(pdir, exist_ok=True)
-            filepath = os.path.join(pdir, self.SAVENAME[lang])
-            if os.path.isfile(filepath):
-                print('{} already exists!'.format(filepath))
+            codepath = os.path.join(pdir, self.SAVENAME[lang])
+            if os.path.isfile(codepath):
+                print('{} already exists!'.format(codepath))
                 continue
-            with open(filepath, 'w') as f:
-                print(desc.text, file=f)
+            with open(codepath, 'w') as f:
                 print(d[lang], file=f)
-                print('{} saved.'.format(filepath))
+                print('{} saved.'.format(codepath))
 
-    def save_problems(self, plist, pdir, workers=10):
+    def save_problems(self, plist, pdir, langlist, workers=10):
         if len(plist) == 0: return
         with cf.ThreadPoolExecutor(max_workers=workers) as e:
-            e.map(lambda x: self._write_file(x, os.path.join(self.BASEDIR, pdir)), plist)
+            e.map(lambda x: self._write_file(x, os.path.join(self.BASEDIR, pdir), langlist), plist)
             e.shutdown(wait=True)
 
