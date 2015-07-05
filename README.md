@@ -8,7 +8,7 @@ Save filtered problems on leetcode.com in current dir.
 Note:
 -----
 * saved problems with specified language will be ignored
-* when save problems, cannot specify category and tag at the same time
+* when saving problems, cannot specify category and tag at the same time
 * multiple tags/categories/difficulties/numbers are now separated by **space** not **comma**
 
 Dependecies:
