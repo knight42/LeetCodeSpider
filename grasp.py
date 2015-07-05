@@ -4,6 +4,7 @@ import os
 import sys
 import argparse
 import crawler
+import configparser
 from urllib.parse import urljoin
 
 # This piece of code mainly comes from @vamin in StackOverFlow
@@ -77,6 +78,9 @@ if __name__ == '__main__':
                             parents=[base_parser],
                             formatter_class=CustomFormatter,
                             help='Display available categories or problems in specified categories')
+    sav_sub_parser = subparsers.add_parser('save_submitted',
+                            formatter_class=CustomFormatter,
+                            help='Save successfully submitted code.')
 
     cat_parser.add_argument('-c', '--category',
                         nargs='+',
@@ -91,6 +95,17 @@ if __name__ == '__main__':
                         choices=['all','cpp','java','python','c','c#','js','ruby','bash','mysql'],
                         help="Specify the language.\n"
                              "If not specified, only the description will be saved.")
+    sav_sub_parser.add_argument('-n', '--number',
+                        nargs='+',
+                        help="Specify the question number\n"
+                             "If not specified, all your submitted problems will be saved.")
+    sav_sub_parser.add_argument('-l','--language',
+                        nargs='+',
+                        default=[],
+                        required=True,
+                        choices=['all','cpp','java','python','c','c#','js','ruby','bash','mysql'],
+                        help="Specify the language")
+
 
     sav_group = sav_parser.add_mutually_exclusive_group(required=True)
     sav_group.add_argument('-c', '--category',
@@ -109,7 +124,9 @@ if __name__ == '__main__':
 
     filter_list = []
 
-    if args.number:
+    argsDict = vars(args)
+
+    if argsDict.get('number'):
         specified_numbers = set()
         for n in args.number:
             if n.isdigit():
@@ -117,56 +134,18 @@ if __name__ == '__main__':
             elif '-' in n:
                 b, e = n.split('-')
                 specified_numbers.update({ str(i) for i in range(int(b), int(e)+1) })
-
         filter_list.append(lambda x: x['number'] in specified_numbers)
 
         if args.verbose:
             print('Specified numbers are: {}'.format(specified_numbers))
 
-    if args.difficulty:
+    if argsDict.get('difficulty'):
         filter_list.append(lambda x: x['difficulty'] in args.difficulty)
 
         if args.verbose:
             print('Specified difficulty is: {}'.format(args.difficulty))
 
-    argsDict = vars(args)
-
-    if argsDict.get('category'):
-        if 'all' in args.category:
-           args.category = ALL_CATEGORIES
-        c = crawler.Crawler(debug=args.verbose)
-        L = args.category
-        urllist = [ urljoin(c.BASEURL, i) for i in L ]
-
-        if args.verbose:
-            print('Specified categories are: {}'.format(args.category))
-
-    elif argsDict.get('tag'):
-        c = crawler.Crawler(debug=args.verbose)
-        c.BASEDIR = os.path.join(c.BASEDIR, 'Tag')
-        if 'all' in args.tag:
-            args.tag = list(c.TAGS.keys())
-        L = args.tag
-        urllist = [ c.TAGS[i][1] for i in L ]
-
-        if args.verbose:
-            print('Specified tags are: {}'.format(args.tag))
-
-    if args.command == 'show_tags':
-        if not args.tag:
-            c=crawler.Crawler()
-            print('Available tags are:')
-            print(os.linesep.join(sorted(c.TAGS.keys())))
-        else:
-            print_problems(c, args.tag, urllist, filter_list)
-
-    elif args.command == 'show_categories':
-        if not args.category:
-            print('Available categories are: {}'.format(', '.join(ALL_CATEGORIES)))
-        else:
-            print_problems(c, args.category, urllist, filter_list)
-
-    elif args.command == 'save':
+    if argsDict.get('language'):
         specified_langs = []
         for l in args.language:
             if l == 'all':
@@ -182,6 +161,43 @@ if __name__ == '__main__':
         if args.verbose:
             print('Specified languages are: {}'.format(', '.join(specified_langs)))
 
+
+    c = crawler.Crawler(debug=args.verbose)
+
+    if argsDict.get('category'):
+        if 'all' in args.category:
+           args.category = ALL_CATEGORIES
+        L = args.category
+        urllist = [ urljoin(c.BASEURL, i) for i in L ]
+
+        if args.verbose:
+            print('Specified categories are: {}'.format(args.category))
+
+    elif argsDict.get('tag'):
+        c.BASEDIR = os.path.join(c.BASEDIR, 'Tag')
+        alltags = c.get_tags()
+        if 'all' in args.tag:
+            args.tag = list(alltags.keys())
+        L = args.tag
+        urllist = [ alltags[i][1] for i in L ]
+
+        if args.verbose:
+            print('Specified tags are: {}'.format(args.tag))
+
+    if args.command == 'show_tags':
+        if not args.tag:
+            print('Available tags are:')
+            print(os.linesep.join(sorted(alltags.keys())))
+        else:
+            print_problems(c, args.tag, urllist, filter_list)
+
+    elif args.command == 'show_categories':
+        if not args.category:
+            print('Available categories are: {}'.format(', '.join(ALL_CATEGORIES)))
+        else:
+            print_problems(c, args.category, urllist, filter_list)
+
+    elif args.command == 'save':
         for i, u in zip(L, urllist):
             try:
                 plist = get_filtered_problems(c.get_problems_list(u), filter_list)
@@ -196,3 +212,9 @@ if __name__ == '__main__':
 
             c.save_problems(plist, i, specified_langs)
 
+    elif args.command == 'save_submitted':
+        config = configparser.ConfigParser()
+        config.read(os.path.join(c.BASEDIR, 'config.ini'))
+        user= config['USER']['username']
+        pw = config['USER']['password']
+        c.get_submitted_problems(user, pw)
