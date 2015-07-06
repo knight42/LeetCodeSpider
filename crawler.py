@@ -5,10 +5,11 @@ import os
 import re
 import json
 import requests
+import itertools
 from urllib.parse import urljoin
-from bs4 import BeautifulSoup as bs
-from bs4 import SoupStrainer
-import concurrent.futures as cf
+from collections import defaultdict
+from bs4 import BeautifulSoup, SoupStrainer
+from concurrent.futures import ThreadPoolExecutor
 
 class PageError(Exception):
     def __init__(self, text, url):
@@ -16,6 +17,12 @@ class PageError(Exception):
         self.url = url
     def __str__(self):
         return '{}: {}'.format(self.msg, self.url)
+
+class LoginError(Exception):
+    def __init__(self):
+        self.msg = 'Fail to login! Please check your username or password.'
+    def __str__(self):
+        return self.msg
 
 class Crawler:
     def __init__(self, debug=False):
@@ -34,7 +41,7 @@ class Crawler:
 
     def _get_soup(self, url, strainer=None):
         html = requests.get(url, timeout=10)
-        soup = bs(html.content, parse_only=strainer)
+        soup = BeautifulSoup(html.content, parse_only=strainer)
         return soup
 
     def get_tags(self):
@@ -51,20 +58,39 @@ class Crawler:
             tagdict[data[1]] = (data[0], data[2])
         return tagdict
 
-    def get_submitted_problems(self, username, passwd):
-        session = requests.Session()
-        session.headers.update({
+    def login(self, username, passwd):
+        self.session = requests.Session()
+        self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:39.0) Gecko/20100101 Firefox/39.0',
             'Referer': 'https://leetcode.com/accounts/login/' })
         loginurl = 'https://leetcode.com/accounts/login/'
-        session.get(loginurl)
-        token = session.cookies['csrftoken']
+        self.session.get(loginurl)
+        token = self.session.cookies['csrftoken']
         payload = {
             'csrfmiddlewaretoken': token,
             'login': username,
             'password': passwd }
-        session.post(loginurl, data=payload)
-        pass
+        self.session.post(loginurl, data=payload)
+        if not self.session.cookies.get('PHPSESSID'):
+            raise LoginError()
+
+    def get_submissions(self):
+        submurl = 'https://leetcode.com/submissions/'
+        strainer = SoupStrainer('tbody')
+        tosaveDict = defaultdict(dict)
+        for i in itertools.count(1):
+            url = urljoin(submurl, str(i))
+            page = self.session.get(url)
+            soup = BeautifulSoup(page.content, parse_only=strainer)
+            rowlist = soup.find_all('tr')
+            if rowlist == []: break
+            for row in rowlist:
+                _1, title, status, _2, lang = list(row.stripped_strings)
+                if status == 'Accepted':
+                    print(title, status, lang)
+                    if lang not in tosaveDict[title].keys():
+                        tosaveDict[title][lang] = row.find('a', class_='status-accepted')['href']
+        
 
     def get_table(self, url):
         soup = self._get_soup(url)
@@ -78,7 +104,7 @@ class Crawler:
             table = []
             for data in pat.findall(raw_script):
                 num, title, ac_rate, diff = data
-                title, diff = bs(title), bs(diff)
+                title, diff = BeautifulSoup(title), BeautifulSoup(diff)
                 table.append((num, title.text, ac_rate, diff.text, title.a['href']))
         else:
             t = soup.find(id='problemList').find_all('tr')[1:]
@@ -107,13 +133,13 @@ class Crawler:
 
     def save_problems(self, plist, pdir, langlist, workers=15):
         if len(plist) == 0: return
-        with cf.ThreadPoolExecutor(max_workers=workers) as e:
+        with ThreadPoolExecutor(max_workers=workers) as e:
             e.map(lambda x: self._get_text(x, os.path.join(self.BASEDIR, pdir), langlist), plist)
             e.shutdown(wait=True)
         print('All done!')
 
     def _get_text(self, info, pdir, langlist):
-        pdir = os.path.join(pdir, '-'.join([info['number'], info['title']]))
+        pdir = os.path.join(pdir, info['title'])
         os.makedirs(pdir, exist_ok=True)
 
         soup = self._get_soup(info['url'], strainer)

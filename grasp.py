@@ -78,9 +78,10 @@ if __name__ == '__main__':
                             parents=[base_parser],
                             formatter_class=CustomFormatter,
                             help='Display available categories or problems in specified categories')
-    sav_sub_parser = subparsers.add_parser('save_submitted',
+    sav_sub_parser = subparsers.add_parser('save_submissions',
                             formatter_class=CustomFormatter,
-                            help='Save successfully submitted code.')
+                            parents=[base_parser],
+                            help='Save last successful submissions.')
 
     cat_parser.add_argument('-c', '--category',
                         nargs='+',
@@ -95,14 +96,9 @@ if __name__ == '__main__':
                         choices=['all','cpp','java','python','c','c#','js','ruby','bash','mysql'],
                         help="Specify the language.\n"
                              "If not specified, only the description will be saved.")
-    sav_sub_parser.add_argument('-n', '--number',
-                        nargs='+',
-                        help="Specify the question number\n"
-                             "If not specified, all your submitted problems will be saved.")
     sav_sub_parser.add_argument('-l','--language',
                         nargs='+',
                         default=[],
-                        required=True,
                         choices=['all','cpp','java','python','c','c#','js','ruby','bash','mysql'],
                         help="Specify the language")
 
@@ -187,7 +183,7 @@ if __name__ == '__main__':
     if args.command == 'show_tags':
         if not args.tag:
             print('Available tags are:')
-            print(os.linesep.join(sorted(alltags.keys())))
+            print(os.linesep.join(sorted(c.get_tags().keys())))
         else:
             print_problems(c, args.tag, urllist, filter_list)
 
@@ -212,9 +208,10 @@ if __name__ == '__main__':
 
             c.save_problems(plist, i, specified_langs)
 
-    elif args.command == 'save_submitted':
+    elif args.command == 'save_submissions':
         config = configparser.ConfigParser()
         config.read(os.path.join(c.BASEDIR, 'config.ini'))
         user= config['USER']['username']
         pw = config['USER']['password']
-        c.get_submitted_problems(user, pw)
+        c.login(user, pw)
+        c.get_submissions()
