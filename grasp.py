@@ -4,12 +4,14 @@ import os
 import sys
 import argparse
 import crawler
+import writer
 import configparser
 from urllib.parse import urljoin
 
+####################
 # This piece of code mainly comes from @vamin in StackOverFlow
 # See http://stackoverflow.com/a/25334100/4725840
-# Thank him very much! :)
+# Thank him very much! :D
 class CustomFormatter(argparse.HelpFormatter):
     def _format_action_invocation(self, action):
         if not action.option_strings:
@@ -27,16 +29,17 @@ class CustomFormatter(argparse.HelpFormatter):
                 args_string = self._format_args(action, default)
                 option_string = ', '.join(action.option_strings)
             return '{} {}'.format(option_string, args_string)
+####################
 
 def get_filtered_problems(plist, flist):
     for f in flist:
         plist = filter(f, plist)
     return list(plist)
 
-def print_problems(crawl, items, urllist, filter_list):
+def print_problems(spider, items, urllist, filter_list):
     for t, u in zip(items, urllist):
         print('The problems under <{}> are:'.format(t))
-        plist = get_filtered_problems(crawl.get_problems_list(u), filter_list)
+        plist = get_filtered_problems(spider.get_problems_list(u), filter_list)
         for p in plist:
             print('\t'.join((p['number'], p['title'],
                             p['acceptance'], p['difficulty'])))
@@ -66,43 +69,36 @@ if __name__ == '__main__':
 
     subparsers = parser.add_subparsers(help='Available commands', dest='command')
 
-    sav_parser = subparsers.add_parser('save',
-                            parents=[base_parser],
-                            formatter_class=CustomFormatter,
-                            help='Save filtered problems in cur dir.')
+
     tag_parser = subparsers.add_parser('show_tags',
                             parents=[base_parser],
                             formatter_class=CustomFormatter,
                             help='Display available tags or problems with specified tags')
+    tag_parser.add_argument('-t', '--tag',
+                        nargs='+',
+                        help="Specify the tag")
+
+
     cat_parser = subparsers.add_parser('show_categories',
                             parents=[base_parser],
                             formatter_class=CustomFormatter,
                             help='Display available categories or problems in specified categories')
-    sav_sub_parser = subparsers.add_parser('save_submissions',
-                            formatter_class=CustomFormatter,
-                            parents=[base_parser],
-                            help='Save last successful submissions.')
-
     cat_parser.add_argument('-c', '--category',
                         nargs='+',
                         choices=ALL_CATEGORIES + ['all'],
                         help="Specify the category")
-    tag_parser.add_argument('-t', '--tag',
-                        nargs='+',
-                        help="Specify the tag")
+
+
+    sav_parser = subparsers.add_parser('save',
+                            parents=[base_parser],
+                            formatter_class=CustomFormatter,
+                            help='Save filtered problems in cur dir.')
     sav_parser.add_argument('-l','--language',
                         nargs='+',
                         default=[],
                         choices=['all','cpp','java','python','c','c#','js','ruby','bash','mysql'],
                         help="Specify the language.\n"
                              "If not specified, only the description will be saved.")
-    sav_sub_parser.add_argument('-l','--language',
-                        nargs='+',
-                        default=[],
-                        choices=['all','cpp','java','python','c','c#','js','ruby','bash','mysql'],
-                        help="Specify the language")
-
-
     sav_group = sav_parser.add_mutually_exclusive_group(required=True)
     sav_group.add_argument('-c', '--category',
                         nargs='+',
@@ -111,6 +107,20 @@ if __name__ == '__main__':
     sav_group.add_argument('-t', '--tag',
                         nargs='+',
                         help="Specify the tag")
+
+
+    sav_sub_parser = subparsers.add_parser('save_submissions',
+                            formatter_class=CustomFormatter,
+                            help='Save last successful submissions.')
+    sav_sub_parser.add_argument('-l','--language',
+                        nargs='+',
+                        default=[],
+                        choices=['all','cpp','java','python','c','c#','js','ruby','bash','mysql'],
+                        help="Specify the language")
+    sav_sub_parser.add_argument('-v', '--verbose',
+                        action="store_true",
+                        default=False,
+                        help="Verbose output")
 
     if len(sys.argv) > 1:
         args = parser.parse_args()
@@ -143,7 +153,7 @@ if __name__ == '__main__':
 
     if argsDict.get('language'):
         specified_langs = []
-        for l in args.language:
+        for l in set(args.language):
             if l == 'all':
                 specified_langs = ALL_LANGUAGES
                 break
@@ -153,10 +163,9 @@ if __name__ == '__main__':
                 specified_langs.append('javascript')
             else:
                 specified_langs.append(l)
-
+        args.language = specified_langs 
         if args.verbose:
             print('Specified languages are: {}'.format(', '.join(specified_langs)))
-
 
     c = crawler.Crawler(debug=args.verbose)
 
@@ -194,6 +203,8 @@ if __name__ == '__main__':
             print_problems(c, args.category, urllist, filter_list)
 
     elif args.command == 'save':
+        w = writer.Writer(args.verbose)
+
         for i, u in zip(L, urllist):
             try:
                 plist = get_filtered_problems(c.get_problems_list(u), filter_list)
@@ -206,12 +217,27 @@ if __name__ == '__main__':
                 print(plist)
                 print('-----------8<---Problems List End-----8<------------')
 
-            c.save_problems(plist, i, specified_langs)
+            w.save_problems(c, plist, i, args.language)
 
     elif args.command == 'save_submissions':
+        w = writer.Writer(args.verbose)
+
         config = configparser.ConfigParser()
         config.read(os.path.join(c.BASEDIR, 'config.ini'))
         user= config['USER']['username']
         pw = config['USER']['password']
         c.login(user, pw)
-        c.get_submissions()
+        submDict = c.get_submissions()
+
+        info = []
+        if not args.language:
+            specified_langs = ALL_LANGUAGES
+        for title in submDict.keys():
+            for l in submDict[title].keys():
+                if l in specified_langs:
+                    info.append(( title, submDict[title][l], l ))
+
+        if args.verbose:
+            print(info)
+
+        w.save_submissions(c, info)
