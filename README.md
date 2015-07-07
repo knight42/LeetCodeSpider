@@ -8,6 +8,7 @@ Features:
 
 Note:
 -----
+* to save your submissions, please make sure the fields in `config.ini` have been filled in correctly.
 * saved problems with specified language will be ignored
 * when saving problems, cannot specify category and tag at the same time
 * multiple tags/categories/difficulties/numbers are now separated by **space** not **comma**

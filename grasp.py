@@ -225,8 +225,9 @@ if __name__ == '__main__':
         user= config['USER']['username']
         pw = config['USER']['password']
         c.login(user, pw)
+        print('The process may take a while, depending on how much submissions you have')
+        print('Why not take a rest and have a cup of coffee :)')
         submDict = c.get_submissions()
-
         info = []
         if not args.language:
             specified_langs = ALL_LANGUAGES
@@ -235,7 +236,6 @@ if __name__ == '__main__':
                 if l in specified_langs:
                     info.append(( title, submDict[title][l], l ))
 
-        if args.verbose:
-            print(info)
+        if args.verbose: print(info)
 
         w.save_submissions(c, info)
