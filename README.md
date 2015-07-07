@@ -1,9 +1,10 @@
 README
 ======
 
-Description:
+Features:
 ------------
-Save filtered problems on leetcode.com in current dir.
+1. Save filtered problems on leetcode.com
+2. Save all your latest accepted submissions
 
 Note:
 -----
@@ -17,19 +18,19 @@ Dependecies:
 * python3-beautifulsoup4 4.3.2
 * python3-requests 2.7.0
 
-
 Commands:
 ------
 ```
-usage: grasp.py [-h] {save,show_tags,show_categories} ...
+usage: grasp.py [-h] {show_tags,show_categories,save,save_submissions} ...
 
 positional arguments:
-  {save,show_tags,show_categories}
+  {show_tags,show_categories,save,save_submissions}
                         Available commands
-    save                Save filtered problems in cur dir.
     show_tags           Display available tags or problems with specified tags
     show_categories     Display available categories or problems in specified
                         categories
+    save                Save filtered problems in cur dir.
+    save_submissions    Save last accepted submissions.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -40,17 +41,21 @@ optional arguments:
 
 Example:
 --------
-* save all the problems in `shell` category and Python's default code:
+* save all your latest accepted submissions
 ```
-$ grasp.py save -c shell -l python
+$ grasp.py save_submissions
 ```
-* save the problems whose numbers are in {1,2,3,4,5,12,16} in `algorithms` category and C's default code:
+* save all your latest accepted submissions with specified language
 ```
-$ grasp.py save -c algorithms -n 1-5 12 16 -l c
+$ grasp.py save_submissions -l python
 ```
-* save the easy and hard problems in `database` category and JavaScript's default code:
+* save the problems whose numbers are in {1,2,3,4,5,12,16} in `algorithms` category and C & Python's default code:
 ```
-$ grasp.py save -c database -d easy hard -l js
+$ grasp.py save -c algorithms -n 1-5 12 16 -l c python
+```
+* save the easy and hard problems in `database` category and only their description
+```
+$ grasp.py save -c database -d easy hard
 ```
 * save the hard problems with tag `dynamic-programming` and C#'s default code':
 ```
@@ -71,7 +76,7 @@ $ grasp.py show_categories
 ```
 * show problems with specified tags:
 ```
-$ grasp.py show_tags -t trie math
+$ grasp.py show_tags -t trie math 
 ```
 * show easy problems in `algorithm` category:
 ```
