@@ -4,7 +4,6 @@ import os
 import sys
 import argparse
 import crawler
-import writer
 import configparser
 from urllib.parse import urljoin
 
@@ -168,6 +167,7 @@ if __name__ == '__main__':
             print('Specified languages are: {}'.format(', '.join(specified_langs)))
 
     c = crawler.Crawler(debug=args.verbose)
+    w = crawler.Writer(args.verbose)
 
     if argsDict.get('category'):
         if 'all' in args.category:
@@ -179,7 +179,7 @@ if __name__ == '__main__':
             print('Specified categories are: {}'.format(args.category))
 
     elif argsDict.get('tag'):
-        c.BASEDIR = os.path.join(c.BASEDIR, 'Tag')
+        w.BASEDIR = os.path.join(w.BASEDIR, 'Tag')
         alltags = c.get_tags()
         if 'all' in args.tag:
             args.tag = list(alltags.keys())
@@ -203,8 +203,6 @@ if __name__ == '__main__':
             print_problems(c, args.category, urllist, filter_list)
 
     elif args.command == 'save':
-        w = writer.Writer(args.verbose)
-
         for i, u in zip(L, urllist):
             try:
                 plist = get_filtered_problems(c.get_problems_list(u), filter_list)
@@ -220,10 +218,8 @@ if __name__ == '__main__':
             w.save_problems(c, plist, i, args.language)
 
     elif args.command == 'save_submissions':
-        w = writer.Writer(args.verbose)
-
         config = configparser.ConfigParser()
-        config.read(os.path.join(c.BASEDIR, 'config.ini'))
+        config.read(os.path.join(w.BASEDIR, 'config.ini'))
         user= config['USER']['username']
         pw = config['USER']['password']
         c.login(user, pw)
