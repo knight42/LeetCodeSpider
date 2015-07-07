@@ -110,12 +110,14 @@ if __name__ == '__main__':
 
     sav_sub_parser = subparsers.add_parser('save_submissions',
                             formatter_class=CustomFormatter,
-                            help='Save last successful submissions.')
+                            help='Save last accepted submissions.')
     sav_sub_parser.add_argument('-l','--language',
                         nargs='+',
                         default=[],
                         choices=['all','cpp','java','python','c','c#','js','ruby','bash','mysql'],
-                        help="Specify the language")
+                        help="Specify the language.\n"
+                        "If not specified, all your latest accepted submissions will be grasped."
+                        )
     sav_sub_parser.add_argument('-v', '--verbose',
                         action="store_true",
                         default=False,
