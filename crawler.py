@@ -10,18 +10,25 @@ from collections import defaultdict
 from bs4 import BeautifulSoup, SoupStrainer, re
 from concurrent.futures import ThreadPoolExecutor
 
+
 class PageError(Exception):
+
     def __init__(self, text, url):
         self.msg = text
         self.url = url
+
     def __str__(self):
         return '{}: {}'.format(self.msg, self.url)
 
+
 class LoginError(Exception):
+
     def __init__(self):
         pass
+
     def __str__(self):
         return 'Fail to login! Please check your username or password in `config.ini` .'
+
 
 class Crawler:
     def __init__(self, debug=False):
@@ -58,12 +65,12 @@ class Crawler:
         payload = {
             'csrfmiddlewaretoken': token,
             'login': username,
-            'password': passwd}
+            'password': password}
         self.session.post(loginurl, data=payload)
         if not self.session.cookies.get('PHPSESSID'):
             raise LoginError()
 
-    def get_submissions(self):
+    def get_submissions(self, specified_langs):
         submurl = 'https://leetcode.com/submissions/'
         strainer = SoupStrainer('tbody')
         memory = defaultdict(dict)
@@ -81,7 +88,12 @@ class Crawler:
                     if not memory[title].get(lang):
                         memory[title][lang] = urljoin(self.BASEURL, row.find_all('a')[1]['href'])
                         eachpage[title][lang] = memory[title][lang]
-            yield eachpage
+            info = []
+            for title in eachpage.keys():
+                for lang in eachpage[title].keys():
+                    if lang in specified_langs:
+                        info.append((title, eachpage[title][lang], lang))
+            yield info
 
     def get_table(self, url):
         soup = self.get_soup(url)
@@ -116,26 +128,26 @@ class Crawler:
             print(content)
 
         for info in content:
-            yield {'number':info[0],
-                   'title':info[1].replace(' ', '_'),
-                   'acceptance':info[2],
-                   'difficulty':info[3].lower(),
-                   'url':urljoin(self.BASEURL, info[4])}
+            yield {'number': info[0],
+                   'title': info[1].replace(' ', '_'),
+                   'acceptance': info[2],
+                   'difficulty': info[3].lower(),
+                   'url': urljoin(self.BASEURL, info[4])}
 
 
 class Writer:
     def __init__(self, debug=False):
         self.DEBUG = debug
         self.BASEDIR = os.path.dirname(__file__)
-        self.SAVENAME = {'c':'solution.c',
-                         'cpp':'solution.cpp',
-                         'ruby':'solution.rb',
-                         'javascript':'solution.js',
-                         'csharp':'solution.cs',
-                         'python':'solution.py',
-                         'bash':'solution.sh',
-                         'mysql':'solution.sql',
-                         'java':'solution.java'}
+        self.SAVENAME = {'c': 'solution.c',
+                         'cpp': 'solution.cpp',
+                         'ruby': 'solution.rb',
+                         'javascript': 'solution.js',
+                         'csharp': 'solution.cs',
+                         'python': 'solution.py',
+                         'bash': 'solution.sh',
+                         'mysql': 'solution.sql',
+                         'java': 'solution.java'}
 
     def print_to_file(self, text, path):
         with open(path, 'w') as fout:
@@ -143,7 +155,7 @@ class Writer:
             if self.DEBUG:
                 print('{} saved.'.format(path))
 
-    def save_submissions(self, spider, info, workers=15):
+    def save_submissions(self, spider, info):
 
         def set_save_path(title, lang):
             if lang == 'bash':
@@ -160,27 +172,26 @@ class Writer:
             page = spider.session.get(url)
             pat = re.compile("scope.code.{} = '(.+)'".format(lang))
             code = pat.findall(page.text)[0]
-            jsoncode = json.loads('{"code": "%s"}' %code)
+            jsoncode = json.loads('{"code": "%s"}' % code)
             codepath = set_save_path(title, lang)
             self.print_to_file(jsoncode['code'], codepath)
 
-        with ThreadPoolExecutor(max_workers=workers) as pool:
+        with ThreadPoolExecutor(max_workers=15) as pool:
             pool.map(executor, info)
             pool.shutdown(wait=True)
-        print('All done!')
 
-    def save_problems(self, spider, plist, subdir, langlist, workers=15):
+    def save_problems(self, spider, plist, subdir, langlist):
 
         def save_defaultcode(soup, pdir, langlist):
             tag = soup.find(lambda x: x.has_attr('ng-init'))
             rawjson = tag['ng-init']
             pat = re.compile(r'(\[.+\])')
             raw = pat.findall(rawjson)[0].replace("'", '"')  # ' -> "
-            raw = ''.join(raw.rsplit(',', 1)) # remove the last ',' in json list
+            raw = ''.join(raw.rsplit(',', 1))  # remove the last ',' in json list
             codelist = json.loads(raw)
             codelist = filter(lambda x: x['value'] in langlist, codelist)
 
-            codedict = {i['value']:i['defaultCode'] for i in codelist}
+            codedict = {i['value']: i['defaultCode'] for i in codelist}
 
             for lang in codedict.keys():
                 codepath = os.path.join(pdir, self.SAVENAME[lang])
@@ -204,8 +215,7 @@ class Writer:
             save_description(soup, pdir)
             save_defaultcode(soup, pdir, langlist)
 
-        with ThreadPoolExecutor(max_workers=workers) as pool:
+        with ThreadPoolExecutor(max_workers=15) as pool:
             pool.map(executor, plist)
             pool.shutdown(wait=True)
         print('All done!')
-

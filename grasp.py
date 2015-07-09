@@ -5,7 +5,6 @@ import sys
 import argparse
 import crawler
 from urllib.parse import urljoin
-from concurrent.futures import ProcessPoolExecutor
 
 ####################
 # This piece of code mainly comes from @vamin in StackOverFlow
@@ -105,11 +104,11 @@ if __name__ == '__main__':
     sav_group.add_argument('-t', '--tag',
                            nargs='+',
                            help="Specify the tag")
-    sav_parser.add_argument('--login',
-                             action="store_true",
-                             default=False,
-                             help="Enable this script to save the default code after you login,\n"
-                                  "which is your latest accepted code.")
+    #sav_parser.add_argument('--login',
+    #                        action="store_true",
+    #                        default=False,
+    #                        help="Enable this script to save the default code after you login,\n"
+    #                             "which is your latest accepted code.")
 
 
     sav_sub_parser = subparsers.add_parser('save_submissions',
@@ -208,8 +207,8 @@ if __name__ == '__main__':
             print_problems(c, args.category, urllist, filter_list)
 
     elif args.command == 'save':
-        if args.login:
-            c.login()
+        #if args.login:
+        #    c.login()
 
         for i, u in zip(L, urllist):
             try:
@@ -232,16 +231,14 @@ if __name__ == '__main__':
         if not args.language:
             specified_langs = ALL_LANGUAGES
 
-        def sub_exec(submDict):
-            info = []
-            for title in submDict.keys():
-                for lang in submDict[title].keys():
-                    if lang in specified_langs:
-                        info.append((title, submDict[title][lang], lang))
+        def sub_exec(info):
             if args.verbose:
+                print('Submissions on this page:')
                 print(info)
             w.save_submissions(c, info)
 
-        with ProcessPoolExecutor() as pool:
-            pool.map(sub_exec, c.get_submissions())
+        with crawler.ThreadPoolExecutor(max_workers=5) as pool:
+            pool.map(sub_exec, c.get_submissions(specified_langs))
             pool.shutdown(wait=True)
+        print('All done!')
+
