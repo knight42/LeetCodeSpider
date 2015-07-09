@@ -1,32 +1,40 @@
 #!/usr/bin/python3 -O
 # -*- coding: utf-8 -*-
-
 import os
 import json
 import requests
 import itertools
+import configparser
 from urllib.parse import urljoin
 from collections import defaultdict
 from bs4 import BeautifulSoup, SoupStrainer, re
 from concurrent.futures import ThreadPoolExecutor
 
+
 class PageError(Exception):
+
     def __init__(self, text, url):
         self.msg = text
         self.url = url
+
     def __str__(self):
         return '{}: {}'.format(self.msg, self.url)
 
+
 class LoginError(Exception):
+
     def __init__(self):
         pass
+
     def __str__(self):
         return 'Fail to login! Please check your username or password in `config.ini` .'
+
 
 class Crawler:
     def __init__(self, debug=False):
         self.BASEURL = 'https://leetcode.com/problemset/'
         self.DEBUG = debug
+        self.BASEDIR = os.path.dirname(__file__)
         self.session = requests.Session()
         self.session.headers['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64; rv:39.0) Gecko/20100101 Firefox/39.0'
 
@@ -41,11 +49,15 @@ class Crawler:
         tagdict = {}
         for item in content:
             count, title = list(item.stripped_strings)
-            title = title.replace(' ','-').lower()
-            tagdict[title] = ( count, urljoin(self.BASEURL, item['href']) )
+            title = title.replace(' ', '-').lower()
+            tagdict[title] = (count, urljoin(self.BASEURL, item['href']))
         return tagdict
 
-    def login(self, username, passwd):
+    def login(self):
+        config = configparser.ConfigParser()
+        config.read(os.path.join(self.BASEDIR, 'config.ini'))
+        username = config['USER']['username']
+        password = config['USER']['password']
         loginurl = 'https://leetcode.com/accounts/login/'
         self.session.headers['Referer'] = loginurl
         self.session.get(loginurl)
@@ -53,27 +65,35 @@ class Crawler:
         payload = {
             'csrfmiddlewaretoken': token,
             'login': username,
-            'password': passwd }
+            'password': password}
         self.session.post(loginurl, data=payload)
         if not self.session.cookies.get('PHPSESSID'):
             raise LoginError()
 
-    def get_submissions(self):
+    def get_submissions(self, specified_langs):
         submurl = 'https://leetcode.com/submissions/'
         strainer = SoupStrainer('tbody')
-        tosaveDict = defaultdict(dict)
+        memory = defaultdict(dict)
         for i in itertools.count(1):
             url = urljoin(submurl, str(i))
             soup = self.get_soup(url, strainer)
             rowlist = soup.find_all('tr')
-            if rowlist == []: break
+            if rowlist == []:
+                break
+            eachpage = defaultdict(dict)
             for row in rowlist:
                 _1, title, status, _2, lang = list(row.stripped_strings)
                 if status == 'Accepted':
-                    title = title.replace(' ','_')
-                    if not tosaveDict[title].get(lang):
-                        tosaveDict[title][lang] = urljoin(self.BASEURL, row.find_all('a')[1]['href'])
-        return tosaveDict
+                    title = title.replace(' ', '_')
+                    if not memory[title].get(lang):
+                        memory[title][lang] = urljoin(self.BASEURL, row.find_all('a')[1]['href'])
+                        eachpage[title][lang] = memory[title][lang]
+            info = []
+            for title in eachpage.keys():
+                for lang in eachpage[title].keys():
+                    if lang in specified_langs:
+                        info.append((title, eachpage[title][lang], lang))
+            yield info
 
     def get_table(self, url):
         soup = self.get_soup(url)
@@ -81,8 +101,10 @@ class Crawler:
             raise PageError('No Such Page', url)
 
         if '/tag/' in url:
-            pat = re.compile('"id".+?"(\d+)".+?"title".+?"(.+?)".+?"ac_rate".+?"(.+?)".+?"difficulty".+?"(.+?)"',
-                            re.S | re.X | re.U)
+            pat = re.compile(r'"id".+?"(\d+)".+?'
+                             r'"title".+?"(.+?)".+?'
+                             r'"ac_rate".+?"(.+?)".+?'
+                             r'"difficulty".+?"(.+?)"', re.S | re.X | re.U)
             raw_script = soup.body.find_all('script')[3].text
             table = []
             for data in pat.findall(raw_script):
@@ -90,8 +112,8 @@ class Crawler:
                 title, diff = BeautifulSoup(title), BeautifulSoup(diff)
                 table.append((num, title.text, ac_rate, diff.text, title.a['href']))
         else:
-            t = soup.find(id='problemList').find_all('tr')[1:]
-            table = [ tuple(i.stripped_strings) + (i.a['href'],) for i in t ]
+            tmp = soup.find(id='problemList').find_all('tr')[1:]
+            table = [tuple(i.stripped_strings) + (i.a['href'],) for i in tmp]
 
         return table
 
@@ -106,36 +128,34 @@ class Crawler:
             print(content)
 
         for info in content:
-            yield {
-                    'number':info[0],
-                    'title':info[1].replace(' ','_'),
-                    'acceptance':info[2],
-                    'difficulty':info[3].lower(),
-                    'url':urljoin(self.BASEURL, info[4])
-                  }
+            yield {'number': info[0],
+                   'title': info[1].replace(' ', '_'),
+                   'acceptance': info[2],
+                   'difficulty': info[3].lower(),
+                   'url': urljoin(self.BASEURL, info[4])}
 
 
 class Writer:
     def __init__(self, debug=False):
         self.DEBUG = debug
         self.BASEDIR = os.path.dirname(__file__)
-        self.SAVENAME = {'c':'solution.c',
-                         'cpp':'solution.cpp',
-                         'ruby':'solution.rb',
-                         'javascript':'solution.js',
-                         'csharp':'solution.cs',
-                         'python':'solution.py',
-                         'bash':'solution.sh',
-                         'mysql':'solution.sql',
-                         'java':'solution.java'}
+        self.SAVENAME = {'c': 'solution.c',
+                         'cpp': 'solution.cpp',
+                         'ruby': 'solution.rb',
+                         'javascript': 'solution.js',
+                         'csharp': 'solution.cs',
+                         'python': 'solution.py',
+                         'bash': 'solution.sh',
+                         'mysql': 'solution.sql',
+                         'java': 'solution.java'}
 
     def print_to_file(self, text, path):
-        with open(path, 'w') as f:
-            print(text.replace('\r\n', os.linesep), file=f)
+        with open(path, 'w') as fout:
+            print(text.replace('\r\n', os.linesep), file=fout)
             if self.DEBUG:
                 print('{} saved.'.format(path))
 
-    def save_submissions(self, spider, info, workers=15):
+    def save_submissions(self, spider, info):
 
         def set_save_path(title, lang):
             if lang == 'bash':
@@ -147,37 +167,36 @@ class Writer:
             os.makedirs(pdir, exist_ok=True)
             return os.path.join(pdir, self.SAVENAME[lang])
 
-        def f(item):
+        def executor(item):
             title, url, lang = item
             page = spider.session.get(url)
             pat = re.compile("scope.code.{} = '(.+)'".format(lang))
             code = pat.findall(page.text)[0]
-            jsoncode = json.loads('{"code": "%s"}' %code)
+            jsoncode = json.loads('{"code": "%s"}' % code)
             codepath = set_save_path(title, lang)
             self.print_to_file(jsoncode['code'], codepath)
 
-        with ThreadPoolExecutor(max_workers=workers) as e:
-            e.map(f, info)
-            e.shutdown(wait=True)
-            print('All done!')
+        with ThreadPoolExecutor(max_workers=15) as pool:
+            pool.map(executor, info)
+            pool.shutdown(wait=True)
 
-    def save_problems(self, spider, plist, subdir, langlist, workers=15):
+    def save_problems(self, spider, plist, subdir, langlist):
 
         def save_defaultcode(soup, pdir, langlist):
             tag = soup.find(lambda x: x.has_attr('ng-init'))
             rawjson = tag['ng-init']
-            pat = re.compile('(\[.+\])')
+            pat = re.compile(r'(\[.+\])')
             raw = pat.findall(rawjson)[0].replace("'", '"')  # ' -> "
-            raw = ''.join(raw.rsplit(',', 1)) # remove the last ',' in json list
+            raw = ''.join(raw.rsplit(',', 1))  # remove the last ',' in json list
             codelist = json.loads(raw)
             codelist = filter(lambda x: x['value'] in langlist, codelist)
 
-            d = { i['value']:i['defaultCode'] for i in codelist }
+            codedict = {i['value']: i['defaultCode'] for i in codelist}
 
-            for lang in d.keys():
+            for lang in codedict.keys():
                 codepath = os.path.join(pdir, self.SAVENAME[lang])
                 if not os.path.isfile(codepath):
-                    self.print_to_file(d[lang], codepath)
+                    self.print_to_file(codedict[lang], codepath)
                 elif self.DEBUG:
                     print('{} already exists!'.format(codepath))
 
@@ -189,15 +208,14 @@ class Writer:
             elif self.DEBUG:
                 print('{} already exists!'.format(descpath))
 
-        def f(info):
+        def executor(info):
             soup = spider.get_soup(info['url'], SoupStrainer(class_='col-md-12'))
             pdir = os.path.join(self.BASEDIR, subdir, info['title'])
             os.makedirs(pdir, exist_ok=True)
             save_description(soup, pdir)
             save_defaultcode(soup, pdir, langlist)
 
-        with ThreadPoolExecutor(max_workers=workers) as e:
-            e.map(f, plist)
-            e.shutdown(wait=True)
+        with ThreadPoolExecutor(max_workers=15) as pool:
+            pool.map(executor, plist)
+            pool.shutdown(wait=True)
         print('All done!')
-
