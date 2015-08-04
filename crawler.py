@@ -46,6 +46,7 @@ class Crawler:
     def get_tags(self):
         soup = self.get_soup(self.BASEURL, SoupStrainer(class_='list-group-item'))
         content = soup.find_all('a', onclick=None)
+        content.pop(0)
         tagdict = {}
         for item in content:
             count, title = list(item.stripped_strings)
