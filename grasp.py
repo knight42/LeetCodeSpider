@@ -39,7 +39,8 @@ def print_problems(spider, items, urllist, filter_list):
         print('The problems under <{}> are:'.format(item))
         plist = get_filtered_problems(spider.get_problems_list(url), filter_list)
         for pro in plist:
-            print('\t'.join((pro['number'], pro['title'], pro['acceptance'], pro['difficulty'])))
+            print('\t'.join((pro['ac_or_not'], pro['number'], 
+                             pro['title'], pro['acceptance'], pro['difficulty'])))
         print()
 
 
@@ -59,6 +60,10 @@ if __name__ == '__main__':
                              choices=['easy', 'medium', 'hard'],
                              help="Specify the difficulty.\n"
                              "If not specified, all problems will be grasped.")
+    base_parser.add_argument('--login',
+                            action="store_true",
+                            default=False,
+                            help="Pretend you have login and disp more information")
     base_parser.add_argument('-v', '--verbose',
                              action="store_true",
                              default=False,
@@ -76,7 +81,7 @@ if __name__ == '__main__':
                             help="Specify the tag")
 
 
-    cat_parser = subparsers.add_parser('show_categories',
+    cat_parser = subparsers.add_parser('show_cate',
                                        parents=[base_parser],
                                        formatter_class=CustomFormatter,
                                        help='Display available categories or problems in specified categories')
@@ -104,14 +109,9 @@ if __name__ == '__main__':
     sav_group.add_argument('-t', '--tag',
                            nargs='+',
                            help="Specify the tag")
-    #sav_parser.add_argument('--login',
-    #                        action="store_true",
-    #                        default=False,
-    #                        help="Enable this script to save the default code after you login,\n"
-    #                             "which is your latest accepted code.")
 
 
-    sav_sub_parser = subparsers.add_parser('save_submissions',
+    sav_sub_parser = subparsers.add_parser('save_sub',
                                            formatter_class=CustomFormatter,
                                            help='Save last accepted submissions.')
     sav_sub_parser.add_argument('-l', '--language',
@@ -172,6 +172,8 @@ if __name__ == '__main__':
 
     c = crawler.Crawler(debug=args.verbose)
     w = crawler.Writer(args.verbose)
+    
+    if argsDict.get('login'): c.login()
 
     if argsDict.get('category'):
         if 'all' in args.category:
@@ -200,16 +202,13 @@ if __name__ == '__main__':
         else:
             print_problems(c, args.tag, urllist, filter_list)
 
-    elif args.command == 'show_categories':
+    elif args.command == 'show_cate':
         if not args.category:
             print('Available categories are: {}'.format(', '.join(ALL_CATEGORIES)))
         else:
             print_problems(c, args.category, urllist, filter_list)
 
     elif args.command == 'save':
-        #if args.login:
-        #    c.login()
-
         for i, u in zip(L, urllist):
             try:
                 plist = get_filtered_problems(c.get_problems_list(u), filter_list)

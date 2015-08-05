@@ -22,16 +22,16 @@ Dependecies:
 Commands:
 ------
 ```
-usage: grasp.py [-h] {show_tags,show_categories,save,save_submissions} ...
+usage: grasp.py [-h] {show_tags,show_cate,save,save_sub} ...
 
 positional arguments:
-  {show_tags,show_categories,save,save_submissions}
+  {show_tags,show_cate,save,save_sub}
                         Available commands
     show_tags           Display available tags or problems with specified tags
-    show_categories     Display available categories or problems in specified
+    show_cate           Display available categories or problems in specified
                         categories
     save                Save filtered problems in cur dir.
-    save_submissions    Save last accepted submissions.
+    save_sub            Save last accepted submissions.
 
 optional arguments:
   -h, --help            show this help message and exit

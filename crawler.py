@@ -46,9 +46,10 @@ class Crawler:
     def get_tags(self):
         soup = self.get_soup(self.BASEURL, SoupStrainer(class_='list-group-item'))
         content = soup.find_all('a', onclick=None)
-        content.pop(0)
         tagdict = {}
         for item in content:
+            if '/tag/' not in item['href']:
+                continue
             count, title = list(item.stripped_strings)
             title = title.replace(' ', '-').lower()
             tagdict[title] = (count, urljoin(self.BASEURL, item['href']))
@@ -64,9 +65,10 @@ class Crawler:
         self.session.get(loginurl)
         token = self.session.cookies['csrftoken']
         payload = {
-            'csrfmiddlewaretoken': token,
-            'login': username,
-            'password': password}
+                   'csrfmiddlewaretoken': token,
+                   'login': username,
+                   'password': password
+                  }
         self.session.post(loginurl, data=payload)
         if not self.session.cookies.get('PHPSESSID'):
             raise LoginError()
@@ -102,19 +104,24 @@ class Crawler:
             raise PageError('No Such Page', url)
 
         if '/tag/' in url:
-            pat = re.compile(r'"id".+?"(\d+)".+?'
-                             r'"title".+?"(.+?)".+?'
-                             r'"ac_rate".+?"(.+?)".+?'
-                             r'"difficulty".+?"(.+?)"', re.S | re.X | re.U)
+            pat = re.compile('data: (\[.*\])', re.S | re.U)
             raw_script = soup.body.find_all('script')[3].text
-            table = []
-            for data in pat.findall(raw_script):
-                num, title, ac_rate, diff = data
-                title, diff = BeautifulSoup(title), BeautifulSoup(diff)
-                table.append((num, title.text, ac_rate, diff.text, title.a['href']))
+            rawjson = pat.findall(raw_script)[0]
+            pat = re.compile(',\s*}')
+            rawjson = pat.sub('}', rawjson)
+            rawjson = ''.join(rawjson.rsplit(',', 1))
+            allproblems = json.loads(rawjson)
+            table = list()
+            for p in allproblems:
+                title, diff, ac_or_not = p['title'], p['difficulty'], p['ac_or_not']
+                title, diff, ac_or_not = (BeautifulSoup(title), 
+                                          BeautifulSoup(diff).text, 
+                                          BeautifulSoup(ac_or_not).span['class'][0])
+                ac_rate, idnum = p['ac_rate'], p['id']
+                table.append((idnum, title.text, ac_rate, diff, title.a['href'], ac_or_not))
         else:
             tmp = soup.find(id='problemList').find_all('tr')[1:]
-            table = [tuple(i.stripped_strings) + (i.a['href'],) for i in tmp]
+            table = [tuple(i.stripped_strings) + (i.a['href'], i.td.span['class'][0]) for i in tmp]
 
         return table
 
@@ -133,7 +140,9 @@ class Crawler:
                    'title': info[1].replace(' ', '_'),
                    'acceptance': info[2],
                    'difficulty': info[3].lower(),
-                   'url': urljoin(self.BASEURL, info[4])}
+                   'url': urljoin(self.BASEURL, info[4]),
+                   'ac_or_not': info[5]
+                  }
 
 
 class Writer:
