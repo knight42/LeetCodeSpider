@@ -38,9 +38,12 @@ def print_problems(spider, items, urllist, filter_list):
     for item, url in zip(items, urllist):
         print('The problems under <{}> are:'.format(item))
         plist = get_filtered_problems(spider.get_problems_list(url), filter_list)
+        maxlen = max(len(pro['title']) for pro in plist)
+        head = '{0:<10} {1:<5} {2:<{tlen}} {3:<12} {4:<12}'
+        print(head.format('ac_or_not', 'id', 'title', 'acceptance', 'difficulty', tlen=maxlen))
         for pro in plist:
-            print('\t'.join((pro['ac_or_not'], pro['number'], 
-                             pro['title'], pro['acceptance'], pro['difficulty'])))
+            print(head.format(pro['ac_or_not'], pro['id'], pro['title'],
+                              pro['acceptance'], pro['difficulty'], tlen=maxlen))
         print()
 
 
@@ -60,14 +63,14 @@ if __name__ == '__main__':
                              choices=['easy', 'medium', 'hard'],
                              help="Specify the difficulty.\n"
                              "If not specified, all problems will be grasped.")
-    base_parser.add_argument('--login',
-                            action="store_true",
-                            default=False,
-                            help="Pretend you have login and disp more information")
     base_parser.add_argument('-v', '--verbose',
                              action="store_true",
                              default=False,
                              help="Verbose output")
+    base_parser.add_argument('--login',
+                            action="store_true",
+                            default=False,
+                            help="Pretend you have login and disp more information")
 
     subparsers = parser.add_subparsers(help='Available commands', dest='command')
 

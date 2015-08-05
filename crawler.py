@@ -136,7 +136,7 @@ class Crawler:
             print(content)
 
         for info in content:
-            yield {'number': info[0],
+            yield {'id': info[0],
                    'title': info[1].replace(' ', '_'),
                    'acceptance': info[2],
                    'difficulty': info[3].lower(),
