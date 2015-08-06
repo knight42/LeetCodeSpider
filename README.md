@@ -44,11 +44,11 @@ Example:
 --------
 * save all your latest accepted submissions
 ```
-$ grasp.py save_submissions
+$ grasp.py save_sub
 ```
 * save all your latest accepted submissions with specified language
 ```
-$ grasp.py save_submissions -l python
+$ grasp.py save_sub -l python
 ```
 * save the problems whose numbers are in {1,2,3,4,5,12,16} in `algorithms` category and C & Python's default code:
 ```
@@ -73,7 +73,7 @@ $ grasp.py show_tags
 ```
 * display available categories:
 ```
-$ grasp.py show_categories
+$ grasp.py show_cate
 ```
 * show problems with specified tags:
 ```
@@ -81,5 +81,5 @@ $ grasp.py show_tags -t trie math
 ```
 * show easy problems in `algorithm` category:
 ```
-$ grasp.py show_categories -c algorithms -d easy
+$ grasp.py show_cate -c algorithms -d easy
 ```
