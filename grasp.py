@@ -41,10 +41,20 @@ def print_problems(spider, items, urllist, filter_list):
         maxlen = max(len(pro['title']) for pro in plist)
         head = '{0:<10} {1:<5} {2:<{tlen}} {3:<12} {4:<12}'
         print(head.format('ac_or_not', 'id', 'title', 'acceptance', 'difficulty', tlen=maxlen))
+        total = len(plist)
+        ac, notac = 0, 0
         for pro in plist:
+            if pro['ac_or_not'] == 'ac':
+                ac += 1
+            elif pro['ac_or_not'] == 'notac':
+                notac += 1
             print(head.format(pro['ac_or_not'], pro['id'], pro['title'],
                               pro['acceptance'], pro['difficulty'], tlen=maxlen))
-        print()
+
+        print('AC:      {}'.format(ac))
+        print('NotAC:   {}'.format(notac))
+        print('Unknown: {}'.format(total-ac-notac))
+        print('Total:   {}'.format(total))
 
 
 if __name__ == '__main__':
@@ -122,7 +132,7 @@ if __name__ == '__main__':
                                 default=[],
                                 choices=['all', 'cpp', 'java', 'python', 'c', 'c#', 'js', 'ruby', 'bash', 'mysql'],
                                 help="Specify the language.\n"
-                                "If not specified, all your latest accepted submissions will be grasped.")
+                                "If not specified, all your latest accepted submissions will be saved.")
     sav_sub_parser.add_argument('-v', '--verbose',
                                 action="store_true",
                                 default=False,
@@ -226,7 +236,7 @@ if __name__ == '__main__':
 
             w.save_problems(c, plist, i, args.language)
 
-    elif args.command == 'save_submissions':
+    elif args.command == 'save_sub':
         c.login()
         print('The process may take a while, depending on how much submissions you have')
         print('Why not take a rest and have a cup of coffee :)')
