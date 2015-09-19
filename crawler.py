@@ -85,7 +85,7 @@ class Crawler:
                 break
             eachpage = defaultdict(dict)
             for row in rowlist:
-                _1, title, status, _2, lang = list(row.stripped_strings)
+                _, title, status, _, lang = list(row.stripped_strings)
                 if status == 'Accepted':
                     title = title.replace(' ', '_')
                     if not memory[title].get(lang):
@@ -180,7 +180,7 @@ class Writer:
         def executor(item):
             title, url, lang = item
             page = spider.session.get(url)
-            pat = re.compile("scope.code.{} = '(.+)'".format(lang))
+            pat = re.compile("vm.code.{} = '(.+)'".format(lang))
             code = pat.findall(page.text)[0]
             jsoncode = json.loads('{"code": "%s"}' % code)
             codepath = set_save_path(title, lang)
