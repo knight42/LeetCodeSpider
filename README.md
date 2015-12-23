@@ -1,6 +1,10 @@
 README
 ======
 
+TODO:
+------
+- [ ] Daemonized crawler which can save the latest accepted submissions in real time.
+
 Features:
 ------------
 1. Save filtered problems on leetcode.com
@@ -8,10 +12,10 @@ Features:
 
 Note:
 -----
-* to save your submissions, please make sure the fields in `config.ini` have been filled in correctly.
-* saved problems with specified language will be ignored
-* when saving problems, cannot specify category and tag at the same time
-* multiple tags/categories/difficulties/numbers are now separated by **space** not **comma**
+* To save your submissions, please make sure the fields in `config.ini` have been filled in correctly.
+* Saved problems with specified language will be ignored
+* When saving problems, cannot specify category and tag at the same time
+* Multiple tags/categories/difficulties/numbers are now separated by **space** not **comma**
 
 Dependecies:
 ------------
