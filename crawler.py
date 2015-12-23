@@ -1,15 +1,19 @@
 #!/usr/bin/python3 -O
 # -*- coding: utf-8 -*-
 import os
+import re
 import json
 import requests
 import itertools
 import configparser
 from urllib.parse import urljoin
 from collections import defaultdict
-from bs4 import BeautifulSoup, SoupStrainer, re
+from bs4 import BeautifulSoup, SoupStrainer
 from concurrent.futures import ThreadPoolExecutor
 
+
+ALL_CATEGORIES = ['algorithms', 'database', 'shell']
+ALL_LANGUAGES = ['cpp', 'java', 'python', 'c', 'csharp', 'javascript', 'ruby', 'bash', 'mysql']
 
 class PageError(Exception):
 
@@ -38,8 +42,14 @@ class Crawler:
         self.session = requests.Session()
         self.session.headers['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64; rv:39.0) Gecko/20100101 Firefox/39.0'
 
-    def daemon(self):
-        pass
+    def daemon(self, writer):
+
+        import time
+        self.login()
+        while 1:
+            first_page = next(self.get_submissions(ALL_LANGUAGES))
+            writer.save_submissions(self, first_page)
+            time.sleep(3)
 
     def get_soup(self, url, strainer=None):
         html = self.session.get(url, timeout=10)

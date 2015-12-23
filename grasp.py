@@ -4,6 +4,7 @@ import os
 import sys
 import argparse
 import crawler
+from crawler import ALL_LANGUAGES, ALL_CATEGORIES
 from urllib.parse import urljoin
 
 ####################
@@ -59,9 +60,6 @@ def print_problems(spider, items, urllist, filter_list):
 
 
 if __name__ == '__main__':
-
-    ALL_CATEGORIES = ['algorithms', 'database', 'shell']
-    ALL_LANGUAGES = ['cpp', 'java', 'python', 'c', 'csharp', 'javascript', 'ruby', 'bash', 'mysql']
 
     parser = argparse.ArgumentParser()
 
@@ -139,6 +137,14 @@ if __name__ == '__main__':
                                 default=False,
                                 help="Verbose output")
 
+    daemon_parser = subparsers.add_parser('daemon',
+                                          formatter_class=CustomFormatter,
+                                          help='Daemonized crawler.')
+    daemon_parser.add_argument('-v', '--verbose',
+                                action="store_true",
+                                default=False,
+                                help="Verbose output")
+
     if len(sys.argv) > 1:
         args = parser.parse_args()
     else:
@@ -185,9 +191,14 @@ if __name__ == '__main__':
             print('Specified languages are: {}'.format(', '.join(specified_langs)))
 
     c = crawler.Crawler(debug=args.verbose)
-    w = crawler.Writer(args.verbose)
-    
-    if argsDict.get('login'): c.login()
+    w = crawler.Writer(debug=args.verbose)
+
+    if args.command == 'daemon':
+        c.daemon(w)
+        pass
+
+    if argsDict.get('login'):
+        c.login()
 
     if argsDict.get('category'):
         if 'all' in args.category:
