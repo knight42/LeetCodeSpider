@@ -38,6 +38,9 @@ class Crawler:
         self.session = requests.Session()
         self.session.headers['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64; rv:39.0) Gecko/20100101 Firefox/39.0'
 
+    def daemon(self):
+        pass
+
     def get_soup(self, url, strainer=None):
         html = self.session.get(url, timeout=10)
         soup = BeautifulSoup(html.content, parse_only=strainer)
@@ -107,18 +110,18 @@ class Crawler:
             pat = re.compile('data: (\[.*\])', re.S | re.U)
             raw_script = soup.body.find_all('script')[3].text
             rawjson = pat.findall(raw_script)[0]
-            pat = re.compile(',\s*}')
-            rawjson = pat.sub('}', rawjson)
+            rawjson = re.sub(',\s*}', '}', rawjson)
+            rawjson = re.sub('"\s*\+\s*"', '', rawjson)
             rawjson = ''.join(rawjson.rsplit(',', 1))
             allproblems = json.loads(rawjson)
             table = list()
             for p in allproblems:
                 title, diff, ac_or_not = p['title'], p['difficulty'], p['ac_or_not']
-                title, diff, ac_or_not = (BeautifulSoup(title), 
-                                          BeautifulSoup(diff).text, 
+                title, diff, ac_or_not = (BeautifulSoup(title).body.a,
+                                          BeautifulSoup(diff).text,
                                           BeautifulSoup(ac_or_not).span['class'][0])
                 ac_rate, idnum = p['ac_rate'], p['id']
-                table.append((idnum, title.text, ac_rate, diff, title.a['href'], ac_or_not))
+                table.append((idnum, title.text, ac_rate, diff, title['href'], ac_or_not))
         else:
             tmp = soup.find(id='problemList').find_all('tr')[1:]
             table = [tuple(i.stripped_strings) + (i.a['href'], i.td.span['class'][0]) for i in tmp]

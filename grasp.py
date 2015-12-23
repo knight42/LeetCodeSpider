@@ -55,6 +55,7 @@ def print_problems(spider, items, urllist, filter_list):
         print('NotAC:   {}'.format(notac))
         print('Unknown: {}'.format(total-ac-notac))
         print('Total:   {}'.format(total))
+        print(os.linesep)
 
 
 if __name__ == '__main__':
@@ -80,7 +81,7 @@ if __name__ == '__main__':
     base_parser.add_argument('--login',
                             action="store_true",
                             default=False,
-                            help="Pretend you have login and disp more information")
+                            help="Login and disp extra information")
 
     subparsers = parser.add_subparsers(help='Available commands', dest='command')
 
